@@ -48,6 +48,8 @@ import org.jmarkdownviewer.jmdviewer.service.DocServiceLoader;
 import org.jmarkdownviewer.parser.MarkdownParser;
 import org.jmarkdownviewer.service.DocService;
 
+import com.vaadin.open.Open;
+
 
 public class MainFrame extends JFrame implements ActionListener, HyperlinkListener {
 	
@@ -55,6 +57,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 	
 	HtmlPane htmlpane;
 	JLabel mlMsg;
+	URL stylesheet;
 
 	public MainFrame() {
 		super();
@@ -63,7 +66,15 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		createGui();
 	}
 	
-	private void createGui() {
+	public MainFrame(boolean create) {
+		super();
+		setTitle("jmarkdown (and AsciiDoc) viewer");
+		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+		if(create)
+			createGui();
+	}
+	
+	public void createGui() {
 		setPreferredSize(new Dimension(1280, 960));		
 		
 		JMenuBar menubar = new JMenuBar();
@@ -104,7 +115,10 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		toolbar.add(makeNavigationButton("Refresh24.gif", "RELOAD", "Reload", "Reload"));
 		add(toolbar, BorderLayout.NORTH);
 		
-		htmlpane = new HtmlPane();
+		if (stylesheet == null)
+			htmlpane = new HtmlPane();
+		else
+			htmlpane = new HtmlPane(stylesheet);
 		JScrollPane scrollpane = new JScrollPane(htmlpane);
 		
 		htmlpane.addHyperlinkListener(this);
@@ -159,8 +173,10 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		JFileChooser chooser = new JFileChooser(App.getInstance().getLastdir());
 		FileFilter filter = new FileNameExtensionFilter("MarkDown file", "md", "markdown", "mdown", "mdwn");		
 		chooser.addChoosableFileFilter(filter);
-		//filter = new FileNameExtensionFilter("AsciiDoc file", "adoc", "asciidoc");
-		//chooser.addChoosableFileFilter(filter);
+		/*
+		filter = new FileNameExtensionFilter("AsciiDoc file", "adoc", "asciidoc");
+		chooser.addChoosableFileFilter(filter);
+		*/
 		int ret = chooser.showOpenDialog(this);
 		if (ret == JFileChooser.APPROVE_OPTION) {
 			try {
@@ -327,13 +343,16 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 	public void hyperlinkUpdate(HyperlinkEvent e) {
         if(e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
         	if(Desktop.isDesktopSupported()) {
-        	    try {
+        		Open.open(e.getURL().toString());
+        		/*
+        	    try {        	    	
 					Desktop.getDesktop().browse(e.getURL().toURI());
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				} catch (URISyntaxException e1) {
 					e1.printStackTrace();
 				}
+				*/
         	}
          }		
 	}
@@ -356,14 +375,18 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		} else if(cmd.equals("MD")) {
 			doviewmd();
 		} else if(cmd.equals("DAY")) {
-			htmlpane.setCSS("github.css");
+			URL url = App.class.getResource("github.css");
+			if(stylesheet != null)
+				url = stylesheet;
+			htmlpane.setStyleSheet(url);
 			try {
 				htmlpane.reload();
 			} catch (IOException e1) {
 				log.error(e1.getMessage());
 			}
 		} else if(cmd.equals("DARK")) {
-			htmlpane.setCSS("github-dark.css");
+			URL url = App.class.getResource("github-dark.css");
+			htmlpane.setStyleSheet(url);
 			try {
 				htmlpane.reload();
 			} catch (IOException e1) {
@@ -375,8 +398,15 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 			dispose();
 			System.exit(0);
 		}		
+	}	
+
+	public URL getStylesheet() {
+		return stylesheet;
 	}
 
+	public void setStylesheet(URL stylesheet) {
+		this.stylesheet = stylesheet;
+	}
 
 	private static final long serialVersionUID = 3354572268511291816L;
 

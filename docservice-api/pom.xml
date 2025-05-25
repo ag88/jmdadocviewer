@@ -4,12 +4,11 @@
   <parent>
     <artifactId>parent</artifactId>
     <groupId>org.jmarkdownviewer</groupId>
-    <version>0.9</version>
+    <version>0.9.1</version>
   </parent>
 
   <groupId>org.jmarkdownviewer</groupId>
   <artifactId>docservice-api</artifactId>
-  <version>0.9</version>
 
   <name>docservice-api</name>
   <!-- FIXME change it to the project's website -->

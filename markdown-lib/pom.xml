@@ -4,12 +4,12 @@
 	<parent>
 		<artifactId>parent</artifactId>
 		<groupId>org.jmarkdownviewer</groupId>
-		<version>0.9</version>
+		<version>0.9.1</version>
 	</parent>
 
 	<groupId>org.jmarkdownviewer</groupId>
 	<artifactId>markdown-lib</artifactId>
-	<version>0.9</version>
+	<packaging>jar</packaging>
 
 	<name>markdown-lib</name>
 	<url>https://github.com/ag88/jmdadocviewer</url>
@@ -26,7 +26,7 @@
 		<dependency>
 			<groupId>org.jmarkdownviewer</groupId>
 			<artifactId>docservice-api</artifactId>
-			<version>0.9</version>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.commonmark</groupId>

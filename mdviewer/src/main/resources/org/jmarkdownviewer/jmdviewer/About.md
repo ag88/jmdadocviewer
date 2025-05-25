@@ -1,4 +1,4 @@
-# ![Markdown](markdown.png "Markdown") &nbsp; Markdown and ![AsciiDoc](AsciiDoc-color.png "AsciiDoc") Viewer
+# ![Markdown](markdown.png "Markdown") &nbsp; Markdown Viewer
 ---
 
 This is a Markdown viewer for java. Primarily it tries to display github styled markdown scripts.
@@ -20,12 +20,16 @@ Swing. This generally support image formats such as jpg, png and gif. Unsupporte
 [https://github.com/jhy/jsoup](https://github.com/jhy/jsoup)
 - Apache Commons CLI
 <https://commons.apache.org/proper/commons-cli/index.html>
+- github.css by Chris Patuzzo
+https://twitter.com/chrispatuzzo
+- Open for Java by Vaadin https://github.com/vaadin/open
 - Last but not least Java and Java Swing itself. The html renderer isn't quite the most feature packed but is a mature implementation.
+
 
 ## Origin
 
 github repository: 
-[https://github.com/ag88/jmdviewer](https://github.com/ag88/jmdviewer)
+[https://github.com/ag88/jmdadocviewer](https://github.com/ag88/jmdadocviewer)
 
 Developing this has taken quite some effort mainly in getting it to work and rather extensive tests. if you use this app and found it useful, i'd really appreciate it if you could support my efforts [![Donate](donorbox.png)](https://donorbox.org/jmdviewer) ;)
 
@@ -125,6 +129,23 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
+### Open for Java
+
+by Vaadin https://github.com/vaadin/open:
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
 
 ### apache commons-cli
 by Apache Software Foundation:

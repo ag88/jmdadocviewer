@@ -4,12 +4,11 @@
 	<parent>
 		<artifactId>parent</artifactId>
 		<groupId>org.jmarkdownviewer</groupId>
-		<version>0.9</version>
+		<version>0.9.1</version>
 	</parent>
 
 	<groupId>org.jmarkdownviewer</groupId>
 	<artifactId>mdadocviewer</artifactId>
-	<version>0.9</version>
 	<packaging>jar</packaging>
 
 	<name>mdadocviewer</name>
@@ -26,17 +25,22 @@
 		<dependency>
 			<groupId>org.jmarkdownviewer</groupId>
 			<artifactId>docservice-api</artifactId>
-			<version>0.9</version>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jmarkdownviewer</groupId>
 			<artifactId>markdown-lib</artifactId>
-			<version>0.9</version>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jmarkdownviewer</groupId>
 			<artifactId>asciidoc-lib</artifactId>
-			<version>0.9</version>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.vaadin</groupId>
+			<artifactId>open</artifactId>
+			<version>8.5.0.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jsoup</groupId>
@@ -59,11 +63,11 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.5.3</version>
+				<version>3.7.1</version>
 				<configuration>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
+					<descriptors>
+						<descriptor>src/assembly/jar-with-dep-services.xml</descriptor>
+					</descriptors>
 					<archive>
 						<manifest>
 							<addClasspath>true</addClasspath>
@@ -77,6 +81,41 @@
 						<phase>package</phase>
 						<goals>
 							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>1.6.0</version>
+				<executions>
+					<execution>
+						<id>post-package-rename</id>
+						<phase>pre-integration-test</phase>
+						<configuration>
+							<executable>/usr/bin/mv</executable>
+							<arguments>
+								<argument>target/${project.artifactId}-${project.version}-jar-with-dep-services.jar</argument>
+								<argument>target/${project.artifactId}-${project.version}.jar</argument>
+							</arguments>
+						</configuration>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>post-package-chmod</id>
+						<phase>pre-integration-test</phase>
+						<configuration>
+							<executable>/usr/bin/chmod</executable>
+							<arguments>
+								<argument>755</argument>
+								<argument>target/${project.artifactId}-${project.version}.jar</argument>
+							</arguments>
+						</configuration>
+						<goals>
+							<goal>exec</goal>
 						</goals>
 					</execution>
 				</executions>

@@ -7,6 +7,11 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import javax.swing.SwingUtilities;
 
@@ -17,12 +22,17 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jmarkdownviewer.parser.MarkdownParser;
 
 public class App {
+	
+	Logger log = LogManager.getLogger(App.class);
 
 	String lastdir;
 	String startfile = null;
+	URL stylesheetUrl;
 
 	private static App m_instance;
 
@@ -42,7 +52,14 @@ public class App {
 		SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
-				MainFrame m = new MainFrame();
+				MainFrame m;
+				if(stylesheetUrl == null) {
+					m = new MainFrame();
+				} else {
+					m = new MainFrame(false);
+					m.setStylesheet(stylesheetUrl);
+					m.createGui();
+				}
 				m.pack();
 				m.setLocationRelativeTo(null);
 				m.setVisible(true);
@@ -67,6 +84,9 @@ public class App {
 		options.addOption(
 				Option.builder("o").longOpt("out").hasArg().argName("filename")
 				.desc("output to file").build());
+		options.addOption(
+				Option.builder().longOpt("css").hasArg().argName("filename/url")
+				.desc("use stylesheet, file or url").build());
 
 		CommandLine line;
 		CommandLineParser parser = new DefaultParser();
@@ -89,7 +109,7 @@ public class App {
 					if(line.hasOption("out")) {
 						String outfilename = line.getOptionValue("out");
 						savefile(outfilename, out);
-						System.out.println("saved in " + outfilename);
+						log.info("saved in " + outfilename);
 					} else
 						System.out.println(out);
 				}
@@ -107,13 +127,33 @@ public class App {
 					if(line.hasOption("out")) {
 						String outfilename = line.getOptionValue("out");
 						savefile(outfilename, out);
-						System.out.println("saved in " + outfilename);
+						log.info("saved in " + outfilename);
 					} else
 						System.out.println(out);
 				}
 				System.exit(0);
 			}
 
+			if(line.hasOption("css")) {
+				String arg = line.getOptionValue("css");
+				Path p = Paths.get(arg);
+				if (Files.exists(p) && Files.isRegularFile(p)) {
+					try {
+						stylesheetUrl = p.toUri().toURL();
+					} catch (MalformedURLException e) {
+						log.error(e.getMessage());
+						System.exit(1);
+					}
+				} else {
+					try {
+						stylesheetUrl = new URL(arg);
+					} catch (MalformedURLException e) {
+						log.error(e.getMessage());
+						System.exit(1);
+					}
+				}
+			}
+			
 			args = line.getArgs();
 			if (args != null && args.length > 0) {
 				setStartfile(args[0]);

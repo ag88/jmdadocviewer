@@ -19,16 +19,23 @@ import java.util.Dictionary;
 import java.util.Hashtable;
 
 import javax.swing.JEditorPane;
+import javax.swing.event.HyperlinkEvent;
+import javax.swing.event.HyperlinkListener;
 import javax.swing.text.Document;
 import javax.swing.text.EditorKit;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
+import javax.swing.text.html.HTMLFrameHyperlinkEvent;
 import javax.swing.text.html.StyleSheet;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 import org.commonmark.node.Node;
 import org.jmarkdownviewer.service.DocService;
+
+import com.vaadin.open.Open;
 
 public class HtmlPane extends JEditorPane {
 	
@@ -43,17 +50,23 @@ public class HtmlPane extends JEditorPane {
 	
 	public HtmlPane() {
 		setEditable(false);
-		createPane();
+		URL url = App.class.getResource("github.css");
+		createPane(url);
 	}
-
-	private void createPane() {
+	
+	public HtmlPane(URL url) {
+		setEditable(false);
+		createPane(url);
+	}
+	
+	
+	protected void createPane(URL cssurl) {
 		HTMLEditorKit kit = new HTMLEditorKit();
 		setEditorKit(kit);
 
 		// add some styles to the html
-		StyleSheet stylesheet = kit.getStyleSheet();
-		
-		stylesheet.importStyleSheet(App.class.getResource("github.css"));
+		StyleSheet stylesheet = kit.getStyleSheet();		
+		stylesheet.importStyleSheet(cssurl);
 
 		String imgsrc = App.class.getResource("markdown.png").toString();
 		String imgsrcadoc = App.class.getResource("AsciiDoc-color.png").toString();
@@ -168,11 +181,11 @@ public class HtmlPane extends JEditorPane {
 	}
 	*/
 	
-	public void setCSS(String cssname) {
+	public void setStyleSheet(URL url) {
 		EditorKit kit = getEditorKit();
 		StyleSheet stylesheet = ((HTMLEditorKit) kit).getStyleSheet();
 		
-		stylesheet.importStyleSheet(App.class.getResource(cssname));
+		stylesheet.importStyleSheet(url);
 
 	}
 	
