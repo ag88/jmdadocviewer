@@ -1,6 +1,7 @@
-package org.jmarkdownviewer.jmdviewer;
+package org.jmarkdownviewer.viewer;
 
 import java.awt.Color;
+import java.awt.Desktop;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -32,16 +33,17 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
+import org.apache.logging.log4j.message.Message;
 import org.commonmark.node.Node;
 import org.jmarkdownviewer.service.DocService;
+import org.jmarkdownviewer.viewer.service.DocServiceLoader;
 
 import com.vaadin.open.Open;
 
-public class HtmlPane extends JEditorPane {
+public class HtmlPane extends JEditorPane implements HyperlinkListener {
 	
 	Logger log = LogManager.getLogger(HtmlPane.class);
 
-	Node document;
 	File file;
 	DocService docservice;	
 	
@@ -50,7 +52,7 @@ public class HtmlPane extends JEditorPane {
 	
 	public HtmlPane() {
 		setEditable(false);
-		URL url = App.class.getResource("github.css");
+		URL url = getClass().getResource("github.css");
 		createPane(url);
 	}
 	
@@ -68,79 +70,88 @@ public class HtmlPane extends JEditorPane {
 		StyleSheet stylesheet = kit.getStyleSheet();		
 		stylesheet.importStyleSheet(cssurl);
 
-		String imgsrc = App.class.getResource("markdown.png").toString();
-		String imgsrcadoc = App.class.getResource("AsciiDoc-color.png").toString();
+		// create a document, set it on the jeditorpane, then add the html
+		Document doc = kit.createDefaultDocument();
+		setDocument(doc);
+
+		/*
 		// create some simple html as a string
 		
 		StringBuilder sb = new StringBuilder(256);
 		sb.append("<html>\n");
 		sb.append("<body>\n");		
-		sb.append("<h1>");
-		sb.append("<img src=\"");
-		sb.append(imgsrc);
-		sb.append("\">");
-		sb.append("&nbsp; Markdown ");
-		/*
-		sb.append("&amp; ");
-		sb.append("<img src=\"");
-		sb.append(imgsrcadoc);
-		sb.append("\">");
-		sb.append("&nbsp; AsciiDoc ");
-		*/
-		sb.append("Viewer</h1>\n");
-		sb.append("<h2>Select a file</h2>\n");
-		sb.append("<p>This is some sample text</p>\n");
+		sb.append("<h1>hello world!</h1>");
 		sb.append("</body>\n");
 		sb.append("</html>");
-		
-		// create a document, set it on the jeditorpane, then add the html
-		Document doc = kit.createDefaultDocument();
-		setDocument(doc);
+				
 		setText(sb.toString());
-
-	}
-
-	
-	public void load(File file) throws IOException {
-		
-		if(this.docservice != null) {
-			String html;
-			html = docservice.load(file, this);
-			this.file = file;
-			setText(html);				
-			setCaretPosition(0);
-		} else 
-			throw new IOException("docservice is null");
-
-		/*
-		for(String ext : mdexts) {
-			if (file.getName().endsWith(ext)) {
-				this.docservice = new MarkDownService();
-				this.file = file;
-				String html = docservice.load(file, this);				
-				setText(html);				
-				setCaretPosition(0);
-				return;
-			}				
-		}
-		
-		for(String ext : adocexts) {
-			if (file.getName().endsWith(ext)) {
-				this.docservice = new ADocService();				
-				this.file = file;
-				String html = docservice.load(file, this);
-				setText(html);				
-				setCaretPosition(0);				
-				return;
-			}							
-		}
 		*/
+
+		addHyperlinkListener(this);
+	}
+	
+	@Override
+	public void hyperlinkUpdate(HyperlinkEvent e) {
+        if(e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+        	if(Desktop.isDesktopSupported()) {
+        		Open.open(e.getURL().toString());
+        		/*
+        	    try {        	    	
+					Desktop.getDesktop().browse(e.getURL().toURI());
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				} catch (URISyntaxException e1) {
+					e1.printStackTrace();
+				}
+				*/
+        	}
+         }		
+	}
+	
+	public void load(File file) throws Exception {
+		Marker marker = MarkerManager.getMarker("load()");
+				
+		try {
+			DocService service = DocServiceLoader.getInstance().getProviderForFile(file);
+			if(service == null) {
+				Message msg = log.getMessageFactory().newMessage(
+						"unable to create docservice for {}", file.getName());
+				log.error(marker, msg.getFormattedMessage());				
+				throw new Exception(msg.getFormattedMessage());
+			}
+			this.docservice = service;
+		} catch (Exception e) {
+			Message msg = log.getMessageFactory().newMessage(
+				"unable to create docservice for {}", file.getName());
+			log.error(marker, msg.getFormattedMessage());				
+			throw new Exception(msg.getFormattedMessage());
+		}
+
+		String html;
+		try {
+			html = docservice.load(file, this);
+		} catch (IOException e) {
+			Message msg = log.getMessageFactory().newMessage(
+					"unable to load file {}", file.getName());
+			log.error(marker, msg.getFormattedMessage());				
+			throw new Exception(msg.getFormattedMessage());
+		}
+		this.file = file;
+		setText(html);				
+		setCaretPosition(0);			
 		
 	}
 	
-	public void reload() throws IOException {
+	public void reload() throws Exception {
+		Marker marker = MarkerManager.getMarker("reload()");
 		if(this.file != null) {
-			load(this.file);
+			try {
+				load(this.file);
+			} catch (Exception e) {
+				Message msg = log.getMessageFactory().newMessage(
+						"{}: unable to reload file {}: {}", marker.getName(), file.getName(), e.getMessage());				
+				throw new Exception(msg.getFormattedMessage());
+			}
 		}
 	}
 	
@@ -218,14 +229,6 @@ public class HtmlPane extends JEditorPane {
 	}
 	
 	
-	public Node getMDocument() {
-		return document;
-	}
-
-	public void setMDocument(Node document) {
-		this.document = document;
-	}
-
 	public File getFile() {
 		return file;
 	}

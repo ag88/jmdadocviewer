@@ -1,4 +1,4 @@
-package org.jmarkdownviewer.jmdviewer.service;
+package org.jmarkdownviewer.viewer.service;
 
 import java.io.File;
 import java.nio.file.ProviderNotFoundException;

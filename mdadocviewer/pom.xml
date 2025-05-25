@@ -4,7 +4,7 @@
 	<parent>
 		<artifactId>parent</artifactId>
 		<groupId>org.jmarkdownviewer</groupId>
-		<version>0.9.1</version>
+		<version>0.9.2</version>
 	</parent>
 
 	<groupId>org.jmarkdownviewer</groupId>
@@ -29,6 +29,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.jmarkdownviewer</groupId>
+			<artifactId>viewer</artifactId>
+			<version>${project.version}</version>
+		</dependency>		
+		<dependency>
+			<groupId>org.jmarkdownviewer</groupId>
 			<artifactId>markdown-lib</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -36,11 +41,6 @@
 			<groupId>org.jmarkdownviewer</groupId>
 			<artifactId>asciidoc-lib</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.vaadin</groupId>
-			<artifactId>open</artifactId>
-			<version>8.5.0.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jsoup</groupId>

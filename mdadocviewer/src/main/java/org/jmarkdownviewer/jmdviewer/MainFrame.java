@@ -44,14 +44,15 @@ import javax.swing.text.html.HTMLDocument;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jmarkdownviewer.jmdviewer.service.DocServiceLoader;
 import org.jmarkdownviewer.parser.MarkdownParser;
 import org.jmarkdownviewer.service.DocService;
+import org.jmarkdownviewer.viewer.HtmlPane;
+import org.jmarkdownviewer.viewer.service.DocServiceLoader;
 
 import com.vaadin.open.Open;
 
 
-public class MainFrame extends JFrame implements ActionListener, HyperlinkListener {
+public class MainFrame extends JFrame implements ActionListener {
 	
 	Logger log = LogManager.getLogger(MainFrame.class);
 	
@@ -116,12 +117,10 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		add(toolbar, BorderLayout.NORTH);
 		
 		if (stylesheet == null)
-			htmlpane = new HtmlPane();
+			htmlpane = new MdAdocHtmlPane();
 		else
-			htmlpane = new HtmlPane(stylesheet);
+			htmlpane = new MdAdocHtmlPane(stylesheet);
 		JScrollPane scrollpane = new JScrollPane(htmlpane);
-		
-		htmlpane.addHyperlinkListener(this);
 				
 		getContentPane().add(scrollpane,BorderLayout.CENTER);
 		
@@ -177,43 +176,27 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		chooser.addChoosableFileFilter(filter);
 		int ret = chooser.showOpenDialog(this);
 		if (ret == JFileChooser.APPROVE_OPTION) {
+			File file = chooser.getSelectedFile();
+				
 			try {
-				File file = chooser.getSelectedFile();
-				DocService service;
-				try {
-					service = DocServiceLoader.getInstance().getProviderForFile(file);
-				} catch (Exception e) {
-					String msg = MessageFormat.format("unable to find loader/parser for {0}", file.getName());
-					JOptionPane.showMessageDialog(this, msg,"Error", JOptionPane.ERROR_MESSAGE);
-					return;
-				}
-				if (service != null) {
-					htmlpane.setDocservice(service);
-					htmlpane.load(file);
-				} else {
-					String msg = MessageFormat.format("unable to find loader/parser for {0}", file.getName());
-					JOptionPane.showMessageDialog(this, msg,"Error", JOptionPane.ERROR_MESSAGE);
-				}
-
-			} catch (IOException e) {
-				JOptionPane.showMessageDialog(this, e.getMessage(),"Error", JOptionPane.ERROR_MESSAGE);
-			}
+				htmlpane.load(file);
+			} catch (Exception e) {
+				String msg = MessageFormat.format("unable load file {0}: {1}",
+					file.getName(), e.getMessage());
+				JOptionPane.showMessageDialog(this, msg,"Error", JOptionPane.ERROR_MESSAGE);
+				return;
+			}				
 			App.getInstance().setLastdir(chooser.getSelectedFile().getParent());
 		}
 	}
 	
 	public void openfile(File file) {
-		DocService service = DocServiceLoader.getInstance().getProviderForFile(file);
-		if (service != null) {			
-			try {
-				htmlpane.setDocservice(service);
-				htmlpane.load(file);
-			} catch (IOException e) {
-				JOptionPane.showMessageDialog(this, e.getMessage(),"Error", JOptionPane.ERROR_MESSAGE);
-			}
-		} else {
-			String msg = MessageFormat.format("unable to find loader/parser for {0}", file.getName());
-			JOptionPane.showMessageDialog(this, msg,"Error", JOptionPane.ERROR_MESSAGE);
+		try {
+			htmlpane.load(file);
+		} catch (Exception e) {
+			String msg = MessageFormat.format("unable load file {0}: {1}",
+					file.getName(), e.getMessage());
+			JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE);
 		}
 	}
 	
@@ -337,23 +320,6 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 	}
 
 	
-	@Override
-	public void hyperlinkUpdate(HyperlinkEvent e) {
-        if(e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-        	if(Desktop.isDesktopSupported()) {
-        		Open.open(e.getURL().toString());
-        		/*
-        	    try {        	    	
-					Desktop.getDesktop().browse(e.getURL().toURI());
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				} catch (URISyntaxException e1) {
-					e1.printStackTrace();
-				}
-				*/
-        	}
-         }		
-	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
@@ -363,7 +329,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		} else if(cmd.equals("RELOAD")) {
 			try {
 				htmlpane.reload();
-			} catch (IOException e1) {
+			} catch (Exception e1) {
 				JOptionPane.showMessageDialog(this, e1.getMessage(),"Error", JOptionPane.ERROR_MESSAGE);
 			}		
 		} else if(cmd.equals("ABOUT")) {			
@@ -379,16 +345,16 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 			htmlpane.setStyleSheet(url);
 			try {
 				htmlpane.reload();
-			} catch (IOException e1) {
-				log.error(e1.getMessage());
+			} catch (Exception e2) {
+				log.error(e2.getMessage());
 			}
 		} else if(cmd.equals("DARK")) {
 			URL url = App.class.getResource("github-dark.css");
 			htmlpane.setStyleSheet(url);
 			try {
 				htmlpane.reload();
-			} catch (IOException e1) {
-				log.error(e1.getMessage());
+			} catch (Exception e3) {
+				log.error(e3.getMessage());
 			}
 		} else if(cmd.equals("PRINT")) {
 			doprint();
