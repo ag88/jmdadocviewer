@@ -20,6 +20,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
+import java.util.Enumeration;
 
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
@@ -53,7 +54,13 @@ public class MainFrame extends JFrame implements ActionListener {
 	HtmlPane htmlpane;
 	JLabel mlMsg;
 	URL stylesheet;
-
+	
+	JButton bnDark;
+	JButton bnDay;
+	ButtonGroup gr1;
+	JRadioButtonMenuItem rbmday;
+	JRadioButtonMenuItem rbmdark; 
+	
 	public MainFrame() {
 		super();
 		setTitle("jmarkdown (and AsciiDoc) viewer");
@@ -88,14 +95,14 @@ public class MainFrame extends JFrame implements ActionListener {
 		menubar.add(mView);
 		mView.add(addmenuitem("Markdown", "MD", KeyEvent.VK_M));
 		mView.addSeparator();
-		ButtonGroup gr1 = new ButtonGroup();
-		JRadioButtonMenuItem rbmday = new JRadioButtonMenuItem("Normal Mode", true);
+		gr1 = new ButtonGroup();
+		rbmday = new JRadioButtonMenuItem("Normal Mode", true);
 		rbmday.setActionCommand("DAY");
 		rbmday.setMnemonic(KeyEvent.VK_N);
 		rbmday.addActionListener(this);
 		gr1.add(rbmday);
 		mView.add(rbmday);
-		JRadioButtonMenuItem rbmdark = new JRadioButtonMenuItem("Dark Mode", false);
+		rbmdark = new JRadioButtonMenuItem("Dark Mode", false);
 		rbmdark.setActionCommand("DARK");
 		rbmdark.setMnemonic(KeyEvent.VK_D);
 		rbmdark.addActionListener(this);
@@ -108,6 +115,12 @@ public class MainFrame extends JFrame implements ActionListener {
 		JToolBar toolbar = new JToolBar();
 		toolbar.add(makeNavigationButton("Open24.gif", "OPEN", "Open", "Open"));
 		toolbar.add(makeNavigationButton("Refresh24.gif", "RELOAD", "Reload", "Reload"));
+		
+		bnDark = makeNavigationButton("moon.png", "DARK", "Dark", "Dark");
+		toolbar.add(bnDark);
+		bnDay = makeNavigationButton("sun.png", "DAY", "Day", "Day");
+		toolbar.add(bnDay);
+		bnDay.setVisible(false);
 		add(toolbar, BorderLayout.NORTH);
 
 		if (stylesheet == null)
@@ -325,6 +338,10 @@ public class MainFrame extends JFrame implements ActionListener {
 			} catch (Exception e2) {
 				log.error(e2.getMessage());
 			}
+			bnDark.setVisible(true);
+			bnDay.setVisible(false);
+			gr1.clearSelection();
+			rbmday.setSelected(true);
 		} else if (cmd.equals("DARK")) {
 			URL url = App.class.getResource("github-dark.css");
 			htmlpane.setStyleSheet(url);
@@ -333,6 +350,10 @@ public class MainFrame extends JFrame implements ActionListener {
 			} catch (Exception e3) {
 				log.error(e3.getMessage());
 			}
+			bnDark.setVisible(false);
+			bnDay.setVisible(true);
+			gr1.clearSelection();
+			rbmdark.setSelected(true);
 		} else if (cmd.equals("PRINT")) {
 			doprint();
 		} else if (cmd.equals("EXIT")) {

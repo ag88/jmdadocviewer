@@ -115,19 +115,23 @@ h2 {
 
 h3 {
   font-size: 18px;
+  color: white;
 }
 
 h4 {
   font-size: 16px;
+  color: white;
 }
 
 h5 {
   font-size: 14px;
+  color: white;
 }
 
 h6 {
   color: rgb(238, 238, 236);
   font-size: 14px;
+  color: white;
 }
 
 p, blockquote, ul, ol, dl, li, table, pre {
