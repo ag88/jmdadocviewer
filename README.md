@@ -8,6 +8,7 @@ This is a Markdown (and AsciiDoc) viewer for java. Primarily it tries to display
 ## Features
 
 - Display [Markdown](https://www.markdownguide.org/) files
+- **new** v1.0.x added a basic editor
 - **new** v0.9.x added dark mode and in releases Markdown+Asciidoc jar and a thiner Markdown only jar
 - **new** v0.8 added [AsciiDoc](https://asciidoc.org/) &nbsp; [https://asciidoctor.org/](https://asciidoctor.org/) support
 - HTML and text export

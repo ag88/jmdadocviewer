@@ -12,7 +12,6 @@ import java.beans.PropertyChangeListener;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
@@ -32,11 +31,16 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JPopupMenu.Separator;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JToolBar;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.HyperlinkEvent;
+import javax.swing.event.HyperlinkListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.html.HTMLDocument;
@@ -47,20 +51,24 @@ import org.jmarkdownviewer.parser.MarkdownParser;
 import org.jmarkdownviewer.service.DocService;
 import org.jmarkdownviewer.viewer.HtmlPane;
 
-public class MainFrame extends JFrame implements ActionListener {
-
+public class MainFrame extends JFrame implements ActionListener, HyperlinkListener {
+	
 	Logger log = LogManager.getLogger(MainFrame.class);
 
-	HtmlPane htmlpane;
-	JLabel mlMsg;
+    private JTabbedPane tabbedPane;
+    private TextEditPane textEditPane;
+    private HtmlPane htmlpane;
+    private JLabel mlMsg;
 	URL stylesheet;
 	
 	JButton bnDark;
 	JButton bnDay;
 	ButtonGroup gr1;
 	JRadioButtonMenuItem rbmday;
-	JRadioButtonMenuItem rbmdark; 
-	
+	JRadioButtonMenuItem rbmdark;
+	private File currentFile;
+	private boolean isReloadingFromEditor = false;
+
 	public MainFrame() {
 		super();
 		setTitle("jmarkdown (and AsciiDoc) viewer");
@@ -84,9 +92,13 @@ public class MainFrame extends JFrame implements ActionListener {
 		mFile.setMnemonic(KeyEvent.VK_F);
 		menubar.add(mFile);
 		mFile.add(addmenuitem("Open", "OPEN", KeyEvent.VK_O));
+        mFile.add(addmenuitem("Save", "SAVE", KeyEvent.VK_S));
+        mFile.add(addmenuitem("Save As", "SAVE_AS", KeyEvent.VK_A));
+        mFile.addSeparator();
 		mFile.add(addmenuitem("Reload", "RELOAD", KeyEvent.VK_R));
 		mFile.add(addmenuitem("Export", "EXPORT", KeyEvent.VK_E));
 		mFile.add(addmenuitem("Print", "PRINT", KeyEvent.VK_P));
+        mFile.addSeparator();
 		mFile.add(addmenuitem("About", "ABOUT", KeyEvent.VK_A));
 		mFile.add(addmenuitem("Exit", "EXIT", KeyEvent.VK_X));
 
@@ -108,36 +120,61 @@ public class MainFrame extends JFrame implements ActionListener {
 		rbmdark.addActionListener(this);
 		gr1.add(rbmdark);
 		mView.add(rbmdark);
+		mView.addSeparator();
+        mView.add(addmenuitem("Update Preview", "UPDATE_PREVIEW", KeyEvent.VK_U));
+        mView.add(addmenuitem("Editor", "SHOW_EDITOR", KeyEvent.VK_E));
+        mView.add(addmenuitem("Preview", "SHOW_PREVIEW", KeyEvent.VK_P));
 
 		setJMenuBar(menubar);
 		getContentPane().setLayout(new BorderLayout());
 
 		JToolBar toolbar = new JToolBar();
 		toolbar.add(makeNavigationButton("Open24.gif", "OPEN", "Open", "Open"));
+        toolbar.add(makeNavigationButton("Save24.gif", "SAVE", "Save", "Save"));
+        toolbar.add(makeNavigationButton("SaveAs24.gif", "SAVE_AS", "Save As", "Save As"));
 		toolbar.add(makeNavigationButton("Refresh24.gif", "RELOAD", "Reload", "Reload"));
-		
+
 		bnDark = makeNavigationButton("moon.png", "DARK", "Dark", "Dark");
 		toolbar.add(bnDark);
 		bnDay = makeNavigationButton("sun.png", "DAY", "Day", "Day");
 		toolbar.add(bnDay);
 		bnDay.setVisible(false);
+        toolbar.add(makeNavigationButton("Refresh24.gif", "UPDATE_PREVIEW", "Update Preview", "Update Preview"));
 		add(toolbar, BorderLayout.NORTH);
+
+        // Create tabbed pane
+        tabbedPane = new JTabbedPane();
 
 		if (stylesheet == null)
 			htmlpane = new MDHtmlPane();
 		else
 			htmlpane = new MDHtmlPane(stylesheet);
-		JScrollPane scrollpane = new JScrollPane(htmlpane);
 
-		getContentPane().add(scrollpane, BorderLayout.CENTER);
+        htmlpane.addHyperlinkListener(this);
+        tabbedPane.addTab("Preview", new JScrollPane(htmlpane));
 
-		// mlMsg = new JLabel();
-		// getContentPane().add(mlMsg, BorderLayout.SOUTH);
+        // Editor tab (TextEditPane)
+        textEditPane = new TextEditPane(this);
+        tabbedPane.addTab("Editor", textEditPane);
+        
+        // Tab switch listener: update preview when switching to Preview tab
+        tabbedPane.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+                if (tabbedPane.getSelectedIndex() == 0 && !isReloadingFromEditor) {
+                    updatePreviewFromEditor();
+                }
+            }
+        });
 
-		// System.out.println(htmlpane.getCSS());
-	}
+        getContentPane().add(tabbedPane, BorderLayout.CENTER);
+        
+        mlMsg = new JLabel("Ready");
+        getContentPane().add(mlMsg, BorderLayout.SOUTH);
+    }
 
-	protected JButton makeNavigationButton(String imageName, String actionCommand, String toolTipText, String altText) {
+	protected JButton makeNavigationButton(String imageName, String actionCommand,
+			String toolTipText, String altText) {
 
 		// Create and initialize the button.
 		JButton button = new JButton();
@@ -171,37 +208,105 @@ public class MainFrame extends JFrame implements ActionListener {
 		return item;
 	}
 
-	private void doopen() {
-		JFileChooser chooser = new JFileChooser(App.getInstance().getLastdir());
-		FileFilter filter = new FileNameExtensionFilter("MarkDown file", "md", "markdown", "mdown", "mdwn");
-		chooser.addChoosableFileFilter(filter);
-		/*
-		 * filter = new FileNameExtensionFilter("AsciiDoc file", "adoc", "asciidoc");
-		 * chooser.addChoosableFileFilter(filter);
-		 */
-		int ret = chooser.showOpenDialog(this);
-		if (ret == JFileChooser.APPROVE_OPTION) {
-			File file = chooser.getSelectedFile();
-			try {
-				htmlpane.load(file);
-			} catch (Exception e) {
-				String msg = MessageFormat.format("unable load file {0}: {1}", file.getName(), e.getMessage());
-				JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE);
-				return;
-			}
-			App.getInstance().setLastdir(chooser.getSelectedFile().getParent());
-		}
-	}
+    private void doopen() {
+        JFileChooser chooser = new JFileChooser(App.getInstance().getLastdir());
+        FileFilter filter = new FileNameExtensionFilter("MarkDown file", "md", "markdown", "mdown", "mdwn");        
+        chooser.addChoosableFileFilter(filter);
+        filter = new FileNameExtensionFilter("AsciiDoc file", "adoc", "asciidoc");
+        chooser.addChoosableFileFilter(filter);
+        int ret = chooser.showOpenDialog(this);
+        if (ret == JFileChooser.APPROVE_OPTION) {            
+            openfile(chooser.getSelectedFile());
+            App.getInstance().setLastdir(chooser.getSelectedFile().getParent());
+        }
+    }
 
 	public void openfile(File file) {
 		try {
+			this.currentFile = file;
 			htmlpane.load(file);
+            textEditPane.loadFile(file);
+            mlMsg.setText("Opened: " + file.getName());			
 		} catch (Exception e) {
 			String msg = MessageFormat.format("unable load file {0}: {1}",
 					file.getName(), e.getMessage());
 			JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE);
 		}
 	}
+
+    public void dosave() {
+        // If no current file, trigger Save As
+        if (currentFile == null) {
+            doSaveAs();
+            return;
+        }
+        try {
+            textEditPane.saveFile();
+            mlMsg.setText("Saved: " + currentFile.getName());
+            htmlpane.reload();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage(), 
+                    "Save Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    public boolean doSaveAs() {
+        JFileChooser chooser = new JFileChooser();
+        if (currentFile != null) {
+            chooser.setCurrentDirectory(currentFile.getParentFile());
+        } else {
+            chooser.setCurrentDirectory(new File(App.getInstance().getLastdir()));
+        }
+        
+        // Add file filters
+        FileFilter mdFilter = new FileNameExtensionFilter("Markdown files", "md", "markdown", "mdown", "mdwn");
+        chooser.addChoosableFileFilter(mdFilter);
+        FileFilter adocFilter = new FileNameExtensionFilter("AsciiDoc files", "adoc", "asciidoc");
+        chooser.addChoosableFileFilter(adocFilter);
+        chooser.setAcceptAllFileFilterUsed(false);
+        
+        int ret = chooser.showSaveDialog(this);
+        if (ret == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = chooser.getSelectedFile();
+            
+            // Append extension if missing
+            FileFilter selectedFilter = chooser.getFileFilter();
+            if (selectedFilter instanceof FileNameExtensionFilter) {
+                String[] extensions = ((FileNameExtensionFilter) selectedFilter).getExtensions();
+                boolean hasValidExtension = false;
+                for (String ext : extensions) {
+                    if (selectedFile.getName().toLowerCase().endsWith("." + ext.toLowerCase())) {
+                        hasValidExtension = true;
+                        break;
+                    }
+                }
+                if (!hasValidExtension && extensions.length > 0) {
+                    selectedFile = new File(selectedFile.getAbsolutePath() + "." + extensions[0]);
+                }
+            }
+            
+            // Check for overwrite
+            if (selectedFile.exists()) {
+                int confirm = JOptionPane.showConfirmDialog(this,
+                    "File " + selectedFile.getName() + " exists. Overwrite?",
+                    "Confirm Overwrite", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (confirm != JOptionPane.OK_OPTION) return false;
+            }
+            
+            try {
+                textEditPane.saveFile(selectedFile);
+                htmlpane.reload();
+                App.getInstance().setLastdir(selectedFile.getParent());
+                mlMsg.setText("Saved as: " + selectedFile.getName());
+                return true;
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage(),
+                        "Save Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+        } else 
+        	return false;
+    }
 
 	String selextension;
 
@@ -211,7 +316,8 @@ public class MainFrame extends JFrame implements ActionListener {
 		chooser.addChoosableFileFilter(filter);
 		filter = new FileNameExtensionFilter("Plain text file", "txt");
 		chooser.addChoosableFileFilter(filter);
-		chooser.addPropertyChangeListener(JFileChooser.FILE_FILTER_CHANGED_PROPERTY, new PropertyChangeListener() {
+		chooser.addPropertyChangeListener(JFileChooser.FILE_FILTER_CHANGED_PROPERTY,
+				new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent evt) {
 				FileFilter filter = (FileFilter) evt.getNewValue();
 
@@ -224,21 +330,25 @@ public class MainFrame extends JFrame implements ActionListener {
 		if (ret == JFileChooser.APPROVE_OPTION) {
 			File file = chooser.getSelectedFile();
 			if (file.getName().indexOf(".") == -1 && selextension == null) {
-				String msg = "Select an appropriate extension," + " Only HTML or TXT is supported for now";
-				JOptionPane.showMessageDialog(this, msg, "Invalid file type", JOptionPane.WARNING_MESSAGE);
+				String msg = "Select an appropriate extension,"
+						+ " Only HTML or TXT is supported for now";
+				JOptionPane.showMessageDialog(this, msg, "Invalid file type",
+						JOptionPane.WARNING_MESSAGE);
 				return;
 			}
 			if (file.getName().indexOf(".") == -1 && selextension != "") {
-				file = new File(file.getAbsolutePath().concat(".").concat(selextension));
+				file = new File(file.getAbsolutePath()
+						.concat(".").concat(selextension));
 			}
 			if (file.exists()) {
 				String msg = "File " + file.getName() + " exists ! Overwrite?";
-				ret = JOptionPane.showConfirmDialog(this, msg, "Overwrite warning", JOptionPane.OK_CANCEL_OPTION,
-						JOptionPane.WARNING_MESSAGE);
+				ret = JOptionPane.showConfirmDialog(this, msg, "Overwrite warning",
+						JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
 				if (ret != JOptionPane.OK_OPTION)
 					return;
 			}
-			if (file.getName().toLowerCase().endsWith("htm") || file.getName().toLowerCase().endsWith("html")) {
+			if (file.getName().toLowerCase().endsWith("htm") ||
+				file.getName().toLowerCase().endsWith("html")) {
 				DocService docservice = htmlpane.getDocservice();
 				if (docservice == null)
 					return;
@@ -263,15 +373,33 @@ public class MainFrame extends JFrame implements ActionListener {
 
 	}
 
-	private void doviewmd() {
-		JTextArea ta = new JTextArea(40, 80);
-
-		DocService docservice = htmlpane.getDocservice();
-		File file = htmlpane.getFile();
-		ta.setText(docservice.loadRaw(file));
-		JScrollPane pane = new JScrollPane(ta);
-		JOptionPane.showMessageDialog(this, pane);
-	}
+    private void updatePreviewFromEditor() {
+        if (currentFile == null) {
+            //JOptionPane.showMessageDialog(this, "No file is currently open.", 
+            //        "No File", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try {
+            isReloadingFromEditor = true;
+            String editorContent = textEditPane.getTextContent();
+            
+            if (currentFile.getName().endsWith(".md") || 
+                currentFile.getName().endsWith(".markdown")) {
+                Files.write(currentFile.toPath(), editorContent.getBytes());
+                htmlpane.reload();
+                mlMsg.setText("Preview updated from editor");
+            } else {
+                JOptionPane.showMessageDialog(this, 
+                        "Live preview update is currently only supported for Markdown files.", 
+                        "Feature Limitation", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error updating preview: " + e.getMessage(), 
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        } finally {
+            isReloadingFromEditor = false;
+        }
+    }
 
 	private void doprint() {
 		try {
@@ -282,7 +410,8 @@ public class MainFrame extends JFrame implements ActionListener {
 				JOptionPane.showMessageDialog(this, "Error while printing");
 			}
 		} catch (PrinterException e) {
-			JOptionPane.showMessageDialog(this, e.getMessage(), "Error while printing", JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(this, e.getMessage(),
+					"Error while printing", JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 		}
 	}
@@ -311,23 +440,46 @@ public class MainFrame extends JFrame implements ActionListener {
 		}
 	}
 
+    @Override
+    public void hyperlinkUpdate(HyperlinkEvent e) {
+        if(e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+            if(Desktop.isDesktopSupported()) {
+                try {
+                    Desktop.getDesktop().browse(e.getURL().toURI());
+                } catch (IOException | URISyntaxException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        }        
+    }
+
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		String cmd = e.getActionCommand();
 		if (cmd.equals("OPEN")) {
 			doopen();
-		} else if (cmd.equals("RELOAD")) {
+        } else if(cmd.equals("SAVE")) {
+            dosave();
+        } else if(cmd.equals("SAVE_AS")) {
+            doSaveAs();
+        } else if (cmd.equals("RELOAD")) {
 			try {
 				htmlpane.reload();
+	            if (currentFile != null) {
+	                try {
+	                    textEditPane.loadFile(currentFile);
+	                } catch (IOException ex) {
+	                    JOptionPane.showMessageDialog(this, "Error reloading file: " + ex.getMessage(), 
+	                            "Reload Error", JOptionPane.ERROR_MESSAGE);
+	                }
+	            }
 			} catch (Exception e1) {
 				JOptionPane.showMessageDialog(this, e1.getMessage(),"Error", JOptionPane.ERROR_MESSAGE);
-			}		
+			}
 		} else if (cmd.equals("ABOUT")) {
 			doabout();
 		} else if (cmd.equals("EXPORT")) {
 			doexport();
-		} else if (cmd.equals("MD")) {
-			doviewmd();
 		} else if (cmd.equals("DAY")) {
 			URL url = App.class.getResource("github.css");
 			if (stylesheet != null)
@@ -354,6 +506,12 @@ public class MainFrame extends JFrame implements ActionListener {
 			bnDay.setVisible(true);
 			gr1.clearSelection();
 			rbmdark.setSelected(true);
+		} else if(cmd.equals("UPDATE_PREVIEW")) {
+			updatePreviewFromEditor();
+		} else if(cmd.equals("SHOW_EDITOR")) {
+            tabbedPane.setSelectedIndex(1);
+        } else if(cmd.equals("SHOW_PREVIEW")) {
+            tabbedPane.setSelectedIndex(0);
 		} else if (cmd.equals("PRINT")) {
 			doprint();
 		} else if (cmd.equals("EXIT")) {
@@ -368,6 +526,14 @@ public class MainFrame extends JFrame implements ActionListener {
 
 	public void setStylesheet(URL stylesheet) {
 		this.stylesheet = stylesheet;
+	}
+
+	public File getCurrentFile() {
+		return currentFile;
+	}
+
+	public void setCurrentFile(File currentFile) {
+		this.currentFile = currentFile;
 	}
 
 	private static final long serialVersionUID = 3354572268511291816L;

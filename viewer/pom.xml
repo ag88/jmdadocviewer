@@ -4,7 +4,7 @@
 	<parent>
 		<artifactId>parent</artifactId>
 		<groupId>org.jmarkdownviewer</groupId>
-		<version>0.9.3</version>
+		<version>1.0.0</version>
 	</parent>
 
 	<groupId>org.jmarkdownviewer</groupId>
