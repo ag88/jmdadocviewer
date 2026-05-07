@@ -93,6 +93,7 @@ public class App {
 	}
 	
 	private void updateEnv() {
+		
 		URL dayurl = App.class.getResource("github.css");
 		Env.getInstance().put("dayCss", dayurl);
 		
@@ -103,6 +104,8 @@ public class App {
 		Env.getInstance().put("aboutMD", abouturl);
 
 		Env.getInstance().put("appClass", getClass());
+		
+		Env.getInstance().put("title", "Markdown viewer");
 	}
 
 	private void parseargs(String[] args) {

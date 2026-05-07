@@ -29,6 +29,9 @@ where x.y is the version number. You can pass the markdown filename on the comma
 ```
 java -jar mdadocviewer-x.y.z.jar [filename.md]
 ```
+
+while you are editing, if the text is modified, it is indicated with a **\*** in the status line at bottom of window.
+
 ## Build
 
 In linux/osx/un*x:

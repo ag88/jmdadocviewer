@@ -17,6 +17,7 @@ public class Env {
 
 	public void init() {
 		lastdir = System.getProperty("user.dir");
+		put("title", "Markdown (and AsciiDoc) viewer");
 	}
 	
 	public static Env getInstance() {

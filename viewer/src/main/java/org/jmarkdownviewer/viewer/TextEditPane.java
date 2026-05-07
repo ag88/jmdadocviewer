@@ -85,6 +85,21 @@ public class TextEditPane extends JScrollPane {
         Files.write(file.toPath(), textArea.getText().getBytes());
         modified = false; // Reset modified flag after saving
     }
+    
+    
+    public void doDay() {    	
+    	getTextArea().setBackground(Color.WHITE);
+    	getTextArea().setForeground(Color.BLACK);
+    	getTextArea().setCaretColor(Color.BLACK);
+    }
+    
+    public void doDark() {
+    	getTextArea().setBackground(Color.BLACK);
+    	getTextArea().setForeground(Color.WHITE);
+    	getTextArea().setCaretColor(Color.WHITE);
+    }
+    
+    // getters and setters
 
     public File getCurrentFile() {
         return currentFile;

@@ -78,7 +78,9 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 
 	public MainFrame(HtmlPane htmlpane) throws Exception {
 		super();
-		setTitle("jmarkdown (and AsciiDoc) viewer");
+		String title = (String) Env.getInstance().get("title");
+		if (title != null)
+			setTitle(title);
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		this.htmlpane = htmlpane;
 		createGui();
@@ -86,7 +88,9 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 
 	public MainFrame(HtmlPane htmlpane, boolean create) throws Exception {
 		super();
-		setTitle("jmarkdown (and AsciiDoc) viewer");
+		String title = (String) Env.getInstance().get("title");
+		if (title != null)
+			setTitle(title);
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		this.htmlpane = htmlpane;
 		if (create)
@@ -116,7 +120,9 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		JMenu mView = new JMenu("View");
 		mView.setMnemonic(KeyEvent.VK_V);
 		menubar.add(mView);
-		mView.add(addmenuitem("Markdown", "MD", KeyEvent.VK_M));
+        mView.add(addmenuitem("Update Preview", "UPDATE_PREVIEW", KeyEvent.VK_U));
+        mView.add(addmenuitem("Editor", "SHOW_EDITOR", KeyEvent.VK_E));
+        mView.add(addmenuitem("Preview", "SHOW_PREVIEW", KeyEvent.VK_P));
 		mView.addSeparator();
 		gr1 = new ButtonGroup();
 		rbmday = new JRadioButtonMenuItem("Normal Mode", true);
@@ -131,10 +137,6 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		rbmdark.addActionListener(this);
 		gr1.add(rbmdark);
 		mView.add(rbmdark);
-		mView.addSeparator();
-        mView.add(addmenuitem("Update Preview", "UPDATE_PREVIEW", KeyEvent.VK_U));
-        mView.add(addmenuitem("Editor", "SHOW_EDITOR", KeyEvent.VK_E));
-        mView.add(addmenuitem("Preview", "SHOW_PREVIEW", KeyEvent.VK_P));
 
 		setJMenuBar(menubar);
 		getContentPane().setLayout(new BorderLayout());
@@ -150,7 +152,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		bnDay = makeNavigationButton("sun.png", "DAY", "Day", "Day");
 		toolbar.add(bnDay);
 		bnDay.setVisible(false);
-        toolbar.add(makeNavigationButton("Refresh24.gif", "UPDATE_PREVIEW", "Update Preview", "Update Preview"));
+        //toolbar.add(makeNavigationButton("Refresh24.gif", "UPDATE_PREVIEW", "Update Preview", "Update Preview"));
 		add(toolbar, BorderLayout.NORTH);
 
         // Create tabbed pane
@@ -254,6 +256,28 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		}
 	}
 
+	private void doReload() {
+		if (textEditPane.isModified()) {
+			int ret = JOptionPane.showConfirmDialog(this, "Text is modified, reloading will discard the changes",
+				"Text is modified", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (ret != JOptionPane.OK_OPTION)
+				return;			
+		}
+		try {
+			htmlpane.reload();
+            if (currentFile != null) {
+                try {
+                    textEditPane.loadFile(currentFile);
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(this, "Error reloading file: " + ex.getMessage(), 
+                            "Reload Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+		} catch (Exception e1) {
+			JOptionPane.showMessageDialog(this, e1.getMessage(),"Error", JOptionPane.ERROR_MESSAGE);
+		}		
+	}
+	
     public void dosave() {
         // If no current file, trigger Save As
         if (currentFile == null) {
@@ -420,6 +444,50 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
         }
     }
 
+    private void doDay() {
+    	Marker marker = MarkerManager.getMarker("doDay()");    			
+		// note this is from app
+		URL url = (URL) Env.getInstance().get("dayCss");
+		if (url == null) {
+			log.error(marker, "Env: url for day CSS is null");
+			return;
+		}			
+		if (stylesheet != null)
+			url = stylesheet;
+		htmlpane.setStyleSheet(url);
+		try {
+			htmlpane.reload();
+		} catch (Exception e2) {
+			log.error(e2.getMessage());
+		}
+		textEditPane.doDay();
+		bnDark.setVisible(true);
+		bnDay.setVisible(false);
+		gr1.clearSelection();
+		rbmday.setSelected(true);		
+    }
+    
+    private void doDark() {
+    	Marker marker = MarkerManager.getMarker("doDark()");
+		// note this is from app
+		URL url = (URL) Env.getInstance().get("darkCss");
+		if (url == null) {
+			log.error(marker, "Env: url for dark CSS is null");
+			return;
+		}
+		htmlpane.setStyleSheet(url);
+		try {
+			htmlpane.reload();
+		} catch (Exception e3) {
+			log.error(e3.getMessage());
+		}
+		textEditPane.doDark();
+		bnDark.setVisible(false);
+		bnDay.setVisible(true);
+		gr1.clearSelection();
+		rbmdark.setSelected(true);
+    }
+    
 	private void doprint() {
 		try {
 			boolean done = htmlpane.print();
@@ -518,59 +586,15 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
         } else if(cmd.equals("SAVE_AS")) {
             doSaveAs();
         } else if (cmd.equals("RELOAD")) {
-			try {
-				htmlpane.reload();
-	            if (currentFile != null) {
-	                try {
-	                    textEditPane.loadFile(currentFile);
-	                } catch (IOException ex) {
-	                    JOptionPane.showMessageDialog(this, "Error reloading file: " + ex.getMessage(), 
-	                            "Reload Error", JOptionPane.ERROR_MESSAGE);
-	                }
-	            }
-			} catch (Exception e1) {
-				JOptionPane.showMessageDialog(this, e1.getMessage(),"Error", JOptionPane.ERROR_MESSAGE);
-			}
+        	doReload();
 		} else if (cmd.equals("ABOUT")) {
 			doabout();
 		} else if (cmd.equals("EXPORT")) {
 			doexport();
 		} else if (cmd.equals("DAY")) {
-			// note this is from app
-			URL url = (URL) Env.getInstance().get("dayCss");
-			if (url == null) {
-				log.error(marker, "Env: url for day CSS is null");
-				return;
-			}			
-			if (stylesheet != null)
-				url = stylesheet;
-			htmlpane.setStyleSheet(url);
-			try {
-				htmlpane.reload();
-			} catch (Exception e2) {
-				log.error(e2.getMessage());
-			}
-			bnDark.setVisible(true);
-			bnDay.setVisible(false);
-			gr1.clearSelection();
-			rbmday.setSelected(true);
+			doDay();
 		} else if (cmd.equals("DARK")) {
-			// note this is from app
-			URL url = (URL) Env.getInstance().get("darkCss");
-			if (url == null) {
-				log.error(marker, "Env: url for dark CSS is null");
-				return;
-			}
-			htmlpane.setStyleSheet(url);
-			try {
-				htmlpane.reload();
-			} catch (Exception e3) {
-				log.error(e3.getMessage());
-			}
-			bnDark.setVisible(false);
-			bnDay.setVisible(true);
-			gr1.clearSelection();
-			rbmdark.setSelected(true);
+			doDark();
 		} else if(cmd.equals("UPDATE_PREVIEW")) {
 			updatePreviewFromEditor();
 		} else if(cmd.equals("SHOW_EDITOR")) {
