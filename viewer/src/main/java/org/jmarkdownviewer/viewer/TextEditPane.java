@@ -5,6 +5,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,7 +41,12 @@ public class TextEditPane extends JScrollPane {
 
     private void markModified() {
         if (!ignoringDocumentChanges) {
-            modified = true;
+        	if (modified == false) {
+        		modified = true;
+        		ActionEvent e = new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "TEXTMODIFIED");
+        		this.parent.actionPerformed(e);
+        	}
+            modified = true;            
         }
     }
 

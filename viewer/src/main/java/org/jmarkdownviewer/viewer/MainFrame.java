@@ -6,6 +6,8 @@ import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.awt.print.PrinterException;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
@@ -37,6 +39,7 @@ import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JToolBar;
+import javax.swing.KeyStroke;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.HyperlinkEvent;
@@ -55,7 +58,7 @@ import org.jmarkdownviewer.viewer.service.DocServiceLoader;
 
 import com.vaadin.open.Open;
 
-public class MainFrame extends JFrame implements ActionListener, HyperlinkListener {
+public class MainFrame extends JFrame implements ActionListener, HyperlinkListener, WindowListener {
 	
 	Logger log = LogManager.getLogger(MainFrame.class);
 
@@ -98,7 +101,9 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		mFile.setMnemonic(KeyEvent.VK_F);
 		menubar.add(mFile);
 		mFile.add(addmenuitem("Open", "OPEN", KeyEvent.VK_O));
-        mFile.add(addmenuitem("Save", "SAVE", KeyEvent.VK_S));
+		JMenuItem msave = addmenuitem("Save", "SAVE", KeyEvent.VK_S);
+		msave.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
+        mFile.add(msave);
         mFile.add(addmenuitem("Save As", "SAVE_AS", KeyEvent.VK_A));
         mFile.addSeparator();
 		mFile.add(addmenuitem("Reload", "RELOAD", KeyEvent.VK_R));
@@ -180,8 +185,12 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 
         getContentPane().add(tabbedPane, BorderLayout.CENTER);
         
-        mlMsg = new JLabel("Ready");
+        mlMsg = new JLabel();
+        updateStatusMsg("Ready");
         getContentPane().add(mlMsg, BorderLayout.SOUTH);
+        
+        addWindowListener(this);
+        
     }
 
 	protected JButton makeNavigationButton(String imageName, String actionCommand,
@@ -237,7 +246,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 			this.currentFile = file;
 			htmlpane.load(file);
             textEditPane.loadFile(file);
-            mlMsg.setText("Opened: " + file.getName());			
+            updateStatusMsg("Opened: " + file.getName());
 		} catch (Exception e) {
 			String msg = MessageFormat.format("unable load file {0}: {1}",
 					file.getName(), e.getMessage());
@@ -253,7 +262,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
         }
         try {
             textEditPane.saveFile();
-            mlMsg.setText("Saved: " + currentFile.getName());
+            updateStatusMsg("Saved: " + currentFile.getName());
             htmlpane.reload();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage(), 
@@ -308,7 +317,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
                 textEditPane.saveFile(selectedFile);
                 htmlpane.reload();
                 Env.getInstance().setLastdir(selectedFile.getParent());
-                mlMsg.setText("Saved as: " + selectedFile.getName());
+                updateStatusMsg("Saved as: " + selectedFile.getName());
                 return true;
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage(),
@@ -398,7 +407,6 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
                 currentFile.getName().endsWith(".markdown")) {
                 Files.write(currentFile.toPath(), editorContent.getBytes());
                 htmlpane.reload();
-                mlMsg.setText("Preview updated from editor");
             } else {
                 JOptionPane.showMessageDialog(this, 
                         "Live preview update is currently only supported for Markdown files.", 
@@ -434,7 +442,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		try {
 			URL url = (URL) Env.getInstance().get("aboutMD");
 			if (url == null) {
-				log.error(marker, "url for About.md is null");
+				log.error(marker, "Env: url for About.md is null");
 				return;
 			}			
 			BufferedReader reader = new BufferedReader(
@@ -454,7 +462,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		if (appClazz != null) {
 			parser.updatejarimages(appClazz);
 		} else {
-			log.error(marker, "Env appClass is null");
+			log.error(marker, "Env: appClass is null");
 		}
 		String html = parser.getHTML();
 		if (html != null && html != "") {
@@ -474,6 +482,29 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
                 }
             }
         }        
+    }
+    
+    public void updateStatusMsg(String msg) {
+    	StringBuilder sb = new StringBuilder(20);
+    	if(textEditPane.isModified())
+    		sb.append("* ");
+    	sb.append(msg);
+    	mlMsg.setText(sb.toString());    	
+    }
+    
+    public void updateStatusMsg(String msg, boolean preserve) {
+    	StringBuilder sb = new StringBuilder(20);
+    	if(textEditPane.isModified())
+    		sb.append("* ");
+    	sb.append(msg);
+    	if (preserve) {
+    		String currtext = mlMsg.getText();
+    		if (currtext.startsWith("* "))
+    			currtext = currtext.substring(2);
+    		sb.append(" ");
+    		sb.append(currtext);
+    	}    		
+    	mlMsg.setText(sb.toString());    	
     }
 
 	@Override
@@ -508,7 +539,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 			// note this is from app
 			URL url = (URL) Env.getInstance().get("dayCss");
 			if (url == null) {
-				log.error(marker, "url for day CSS is null");
+				log.error(marker, "Env: url for day CSS is null");
 				return;
 			}			
 			if (stylesheet != null)
@@ -527,7 +558,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 			// note this is from app
 			URL url = (URL) Env.getInstance().get("darkCss");
 			if (url == null) {
-				log.error(marker, "url for dark CSS is null");
+				log.error(marker, "Env: url for dark CSS is null");
 				return;
 			}
 			htmlpane.setStyleSheet(url);
@@ -546,6 +577,8 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
             tabbedPane.setSelectedIndex(1);
         } else if(cmd.equals("SHOW_PREVIEW")) {
             tabbedPane.setSelectedIndex(0);
+        } else if(cmd.equals("TEXTMODIFIED")) {
+        	updateStatusMsg("", false);
 		} else if (cmd.equals("PRINT")) {
 			doprint();
 		} else if (cmd.equals("EXIT")) {
@@ -571,5 +604,56 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 	}
 
 	private static final long serialVersionUID = 3354572268511291816L;
+
+	@Override
+	public void windowOpened(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowClosing(WindowEvent e) {
+		if (textEditPane.isModified()) {			
+			int ret = JOptionPane.showConfirmDialog(this, "text is modified, Save?", "text modified", 
+				JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (ret == JOptionPane.YES_OPTION) {
+				if (textEditPane.getCurrentFile() == null) {
+					doSaveAs();
+				} else {
+					dosave();
+				}
+			}			
+		}		
+	}
+
+	@Override
+	public void windowClosed(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowIconified(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowDeiconified(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowActivated(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowDeactivated(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
 
 }
