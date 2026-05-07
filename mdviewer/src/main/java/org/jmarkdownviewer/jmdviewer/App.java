@@ -24,13 +24,17 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 import org.jmarkdownviewer.parser.MarkdownParser;
+import org.jmarkdownviewer.viewer.Env;
+import org.jmarkdownviewer.viewer.HtmlPane;
+import org.jmarkdownviewer.viewer.MainFrame;
 
 public class App {
 	
 	Logger log = LogManager.getLogger(App.class);
 
-	String lastdir;
 	String startfile = null;
 	URL stylesheetUrl;
 
@@ -38,7 +42,6 @@ public class App {
 
 	private App() {
 		// lastdir = System.getProperty("user.home");
-		lastdir = System.getProperty("user.dir");
 	}
 
 	public static App getInstance() {
@@ -49,16 +52,32 @@ public class App {
 
 	private void run(String[] args) {
 		parseargs(args);
+		
+		updateEnv();
+		
 		SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
-				MainFrame m;
-				if(stylesheetUrl == null) {
-					m = new MainFrame();
+				Marker marker = MarkerManager.getMarker("run()");
+				MainFrame m = null;
+				if(stylesheetUrl == null) {					
+					try {
+						HtmlPane pane = new MDHtmlPane();
+						m = new MainFrame(pane);
+					} catch (Exception e) {
+						log.error(marker, "Error initializing : {}", e);
+						System.exit(1);
+					}
 				} else {
-					m = new MainFrame(false);
-					m.setStylesheet(stylesheetUrl);
-					m.createGui();
+					try {
+						HtmlPane pane = new MDHtmlPane(stylesheetUrl);
+						m = new MainFrame(pane, false);
+						m.setStylesheet(stylesheetUrl);
+						m.createGui();
+					} catch (Exception e) {
+						log.error(marker, "Error initializing : {}", e);
+						System.exit(1);
+					}					
 				}
 				m.pack();
 				m.setLocationRelativeTo(null);
@@ -71,6 +90,19 @@ public class App {
 			}
 		});
 
+	}
+	
+	private void updateEnv() {
+		URL dayurl = App.class.getResource("github.css");
+		Env.getInstance().put("dayCss", dayurl);
+		
+		URL darkurl = App.class.getResource("github-dark.css");
+		Env.getInstance().put("darkCss", darkurl);
+		
+		URL abouturl = App.class.getResource("About.md");
+		Env.getInstance().put("aboutMD", abouturl);
+
+		Env.getInstance().put("appClass", getClass());
 	}
 
 	private void parseargs(String[] args) {
@@ -220,14 +252,6 @@ public class App {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	}
-
-	public String getLastdir() {
-		return lastdir;
-	}
-
-	public void setLastdir(String lastdir) {
-		this.lastdir = lastdir;
 	}
 
 	public String getStartfile() {

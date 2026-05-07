@@ -1,4 +1,4 @@
-package org.jmarkdownviewer.jmdviewer;
+package org.jmarkdownviewer.viewer;
 
 import java.awt.BorderLayout;
 import java.awt.Desktop;
@@ -47,9 +47,13 @@ import javax.swing.text.html.HTMLDocument;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 import org.jmarkdownviewer.parser.MarkdownParser;
 import org.jmarkdownviewer.service.DocService;
-import org.jmarkdownviewer.viewer.HtmlPane;
+import org.jmarkdownviewer.viewer.service.DocServiceLoader;
+
+import com.vaadin.open.Open;
 
 public class MainFrame extends JFrame implements ActionListener, HyperlinkListener {
 	
@@ -69,22 +73,24 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 	private File currentFile;
 	private boolean isReloadingFromEditor = false;
 
-	public MainFrame() {
+	public MainFrame(HtmlPane htmlpane) throws Exception {
 		super();
 		setTitle("jmarkdown (and AsciiDoc) viewer");
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+		this.htmlpane = htmlpane;
 		createGui();
 	}
 
-	public MainFrame(boolean create) {
+	public MainFrame(HtmlPane htmlpane, boolean create) throws Exception {
 		super();
 		setTitle("jmarkdown (and AsciiDoc) viewer");
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+		this.htmlpane = htmlpane;
 		if (create)
 			createGui();
 	}
 
-	public void createGui() {
+	public void createGui() throws Exception {
 		setPreferredSize(new Dimension(1280, 960));
 
 		JMenuBar menubar = new JMenuBar();
@@ -145,10 +151,15 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
         // Create tabbed pane
         tabbedPane = new JTabbedPane();
 
+        /*
+         * htmlpane is passed in the constructor
 		if (stylesheet == null)
-			htmlpane = new MDHtmlPane();
+			htmlpane = new MdAdocHtmlPane();
 		else
-			htmlpane = new MDHtmlPane(stylesheet);
+			htmlpane = new MdAdocHtmlPane(stylesheet);
+		*/
+        if (htmlpane == null)
+        	throw new Exception("HtmlPane is NULL");
 
         htmlpane.addHyperlinkListener(this);
         tabbedPane.addTab("Preview", new JScrollPane(htmlpane));
@@ -190,7 +201,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 	protected void setIcon(JButton button, String imageName, String altText) {
 		// Look for the image.
 		String imgLocation = "icons/" + imageName;
-		URL imageURL = App.class.getResource(imgLocation);
+		URL imageURL = MainFrame.class.getResource(imgLocation);
 
 		if (imageURL != null) { // image found
 			button.setIcon(new ImageIcon(imageURL, altText));
@@ -209,7 +220,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 	}
 
     private void doopen() {
-        JFileChooser chooser = new JFileChooser(App.getInstance().getLastdir());
+        JFileChooser chooser = new JFileChooser(Env.getInstance().getLastdir());
         FileFilter filter = new FileNameExtensionFilter("MarkDown file", "md", "markdown", "mdown", "mdwn");        
         chooser.addChoosableFileFilter(filter);
         filter = new FileNameExtensionFilter("AsciiDoc file", "adoc", "asciidoc");
@@ -217,7 +228,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
         int ret = chooser.showOpenDialog(this);
         if (ret == JFileChooser.APPROVE_OPTION) {            
             openfile(chooser.getSelectedFile());
-            App.getInstance().setLastdir(chooser.getSelectedFile().getParent());
+            Env.getInstance().setLastdir(chooser.getSelectedFile().getParent());
         }
     }
 
@@ -255,7 +266,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
         if (currentFile != null) {
             chooser.setCurrentDirectory(currentFile.getParentFile());
         } else {
-            chooser.setCurrentDirectory(new File(App.getInstance().getLastdir()));
+            chooser.setCurrentDirectory(new File(Env.getInstance().getLastdir()));
         }
         
         // Add file filters
@@ -296,7 +307,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
             try {
                 textEditPane.saveFile(selectedFile);
                 htmlpane.reload();
-                App.getInstance().setLastdir(selectedFile.getParent());
+                Env.getInstance().setLastdir(selectedFile.getParent());
                 mlMsg.setText("Saved as: " + selectedFile.getName());
                 return true;
             } catch (Exception e) {
@@ -311,7 +322,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 	String selextension;
 
 	private void doexport() {
-		JFileChooser chooser = new JFileChooser(App.getInstance().getLastdir());
+		JFileChooser chooser = new JFileChooser(Env.getInstance().getLastdir());
 		FileFilter filter = new FileNameExtensionFilter("HTML file", "htm", "html");
 		chooser.addChoosableFileFilter(filter);
 		filter = new FileNameExtensionFilter("Plain text file", "txt");
@@ -417,10 +428,17 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 	}
 
 	private void doabout() {
+		Marker marker = MarkerManager.getMarker("doabout()");
+		
 		StringBuilder sb = new StringBuilder(1024);
 		try {
+			URL url = (URL) Env.getInstance().get("aboutMD");
+			if (url == null) {
+				log.error(marker, "url for About.md is null");
+				return;
+			}			
 			BufferedReader reader = new BufferedReader(
-					new InputStreamReader(App.class.getResourceAsStream("About.md")));
+					new InputStreamReader(url.openStream()));
 			String l;
 			while ((l = reader.readLine()) != null) {
 				sb.append(l);
@@ -428,11 +446,16 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 			}
 			reader.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			log.error(marker, e.getMessage());
 		}
 		MarkdownParser parser = new MarkdownParser();
 		parser.parse(sb.toString());
-		parser.updatejarimages(App.class);
+		Class appClazz = (Class) Env.getInstance().get("appClass");
+		if (appClazz != null) {
+			parser.updatejarimages(appClazz);
+		} else {
+			log.error(marker, "Env appClass is null");
+		}
 		String html = parser.getHTML();
 		if (html != null && html != "") {
 			htmlpane.setText(html);
@@ -455,6 +478,7 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
+		Marker marker = MarkerManager.getMarker("actionPerformed()");
 		String cmd = e.getActionCommand();
 		if (cmd.equals("OPEN")) {
 			doopen();
@@ -481,7 +505,12 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 		} else if (cmd.equals("EXPORT")) {
 			doexport();
 		} else if (cmd.equals("DAY")) {
-			URL url = App.class.getResource("github.css");
+			// note this is from app
+			URL url = (URL) Env.getInstance().get("dayCss");
+			if (url == null) {
+				log.error(marker, "url for day CSS is null");
+				return;
+			}			
 			if (stylesheet != null)
 				url = stylesheet;
 			htmlpane.setStyleSheet(url);
@@ -495,7 +524,12 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 			gr1.clearSelection();
 			rbmday.setSelected(true);
 		} else if (cmd.equals("DARK")) {
-			URL url = App.class.getResource("github-dark.css");
+			// note this is from app
+			URL url = (URL) Env.getInstance().get("darkCss");
+			if (url == null) {
+				log.error(marker, "url for dark CSS is null");
+				return;
+			}
 			htmlpane.setStyleSheet(url);
 			try {
 				htmlpane.reload();
