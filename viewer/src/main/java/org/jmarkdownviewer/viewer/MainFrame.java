@@ -248,6 +248,11 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 			this.currentFile = file;
 			htmlpane.load(file);
             textEditPane.loadFile(file);
+    		String title = (String) Env.getInstance().get("title");
+    		if (title != null)
+    			setTitle(title + " " + file.toString());
+    		else
+    			setTitle(file.toString());
             updateStatusMsg("Opened: " + file.getName());
 		} catch (Exception e) {
 			String msg = MessageFormat.format("unable load file {0}: {1}",
@@ -341,6 +346,12 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
                 textEditPane.saveFile(selectedFile);
                 htmlpane.reload();
                 Env.getInstance().setLastdir(selectedFile.getParent());
+        		String title = (String) Env.getInstance().get("title");
+        		if (title != null)
+        			setTitle(title + " " + selectedFile.toString());
+        		else
+        			setTitle(selectedFile.toString());                
+                
                 updateStatusMsg("Saved as: " + selectedFile.getName());
                 return true;
             } catch (Exception e) {
