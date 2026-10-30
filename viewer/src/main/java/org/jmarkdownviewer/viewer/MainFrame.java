@@ -344,7 +344,8 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
             
             try {
                 textEditPane.saveFile(selectedFile);
-                htmlpane.reload();
+                currentFile = selectedFile;
+                htmlpane.load(selectedFile);
                 Env.getInstance().setLastdir(selectedFile.getParent());
         		String title = (String) Env.getInstance().get("title");
         		if (title != null)
@@ -430,8 +431,14 @@ public class MainFrame extends JFrame implements ActionListener, HyperlinkListen
 
     private void updatePreviewFromEditor() {
         if (currentFile == null) {
-            //JOptionPane.showMessageDialog(this, "No file is currently open.", 
-            //        "No File", JOptionPane.WARNING_MESSAGE);
+            if (textEditPane.isModified()) {
+                int ret = JOptionPane.showConfirmDialog(this,
+                        "No file is currently open. Save your edits to preview them?",
+                        "No File", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+                if (ret != JOptionPane.YES_OPTION || !doSaveAs()) {
+                    tabbedPane.setSelectedIndex(1);
+                }
+            }
             return;
         }
         try {
